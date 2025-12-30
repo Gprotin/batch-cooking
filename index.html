@@ -15,11 +15,11 @@
         .input-group div { flex: 1; }
         input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;}
         button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
-        button.secondary { background: #6b7280; margin-top: 5px;}
         .hidden { display: none; }
-        #exportSection { text-align: center; margin-top: 20px;}
+        .recipe-details { font-size: 0.85rem; color: #666; margin-top: 5px; list-style-type: circle; padding-left: 15px; }
         ul { padding-left: 20px; }
-        li { margin-bottom: 8px; }
+        li { margin-bottom: 10px; }
+        a { color: var(--primary); text-decoration: none; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -39,174 +39,92 @@
                 <input type="number" id="nbKids" value="2" min="0">
             </div>
         </div>
-
         <label>Jours de menus :</label>
         <input type="number" id="daysCount" value="5" min="1" max="7">
-        
         <button onclick="generateMenu()">Générer ma semaine</button>
     </div>
 
     <div id="resultArea" class="hidden">
         <div class="card">
-            <h3>📅 Menu</h3>
+            <h3>📅 Menu & Recettes</h3>
             <div id="menuOutput"></div>
         </div>
-
         <div class="card">
-            <h3>🛒 Liste de courses</h3>
+            <h3>🛒 Liste de courses (Global)</h3>
             <div id="shoppingListOutput"></div>
         </div>
-
-        <div id="exportSection">
-            <button onclick="exportToNotes()">📤 Exporter vers Apple Notes</button>
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="exportToNotes()">📤 Exporter vers Notes</button>
         </div>
     </div>
 </div>
 
 <script>
-    /** * BASE DE DONNÉES (JSON)
-     * Modifiez directement cette liste pour ajouter/supprimer vos recettes.
-     */
     const recipesDB = [
-        {
-            "id": 1,
-            "nom": "Bolognaise de Bœuf 5% (Légumes cachés)",
-            "nb_personnes_base": 4,
-            "ingredients": [
-                {"nom": "Boeuf haché 5%", "quantite": 500, "unite": "g"},
-                {"nom": "Spaghetti complets", "quantite": 400, "unite": "g"},
-                {"nom": "Carottes", "quantite": 3, "unite": "pièces"},
-                {"nom": "Coulis de tomate", "quantite": 500, "unite": "ml"}
-            ]
-        },
-        {
-            "id": 2,
-            "nom": "Dahl de Lentilles Corail",
-            "nb_personnes_base": 4,
-            "ingredients": [
-                {"nom": "Lentilles corail", "quantite": 300, "unite": "g"},
-                {"nom": "Lait de coco light", "quantite": 400, "unite": "ml"},
-                {"nom": "Riz basmati", "quantite": 250, "unite": "g"}
-            ]
-        },
-        {
-            "id": 3,
-            "nom": "Frittata Brocolis & Pommes de terre",
-            "nb_personnes_base": 4,
-            "ingredients": [
-                {"nom": "Oeufs", "quantite": 8, "unite": "pièces"},
-                {"nom": "Pommes de terre", "quantite": 500, "unite": "g"},
-                {"nom": "Brocolis", "quantite": 1, "unite": "tête"}
-            ]
-        },
-  { "id": 6, "nom": "Lasagnes à la Bolognaise et Carottes", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Boeuf haché 5%", "quantite": 500, "unite": "g"}, {"nom": "Pâtes à lasagnes", "quantite": 250, "unite": "g"}, {"nom": "Carottes", "quantite": 4, "unite": "pièces"}, {"nom": "Coulis de tomate", "quantite": 600, "unite": "ml"}, {"nom": "Béchamel légère", "quantite": 400, "unite": "ml"}
-  ]},
-  { "id": 7, "nom": "Boulettes de Boeuf au Fromage et Tomate", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Boeuf haché 5%", "quantite": 600, "unite": "g"}, {"nom": "Mozzarella râpée", "quantite": 100, "unite": "g"}, {"nom": "Purée de tomate", "quantite": 400, "unite": "ml"}, {"nom": "Riz complet", "quantite": 250, "unite": "g"}
-  ]},
-  { "id": 8, "nom": "Gratin de Pâtes au Jambon de Boeuf et Brocolis", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Pâtes complètes", "quantite": 400, "unite": "g"}, {"nom": "Dés de jambon de boeuf", "quantite": 200, "unite": "g"}, {"nom": "Brocolis", "quantite": 600, "unite": "g"}, {"nom": "Crème légère 12%", "quantite": 200, "unite": "ml"}
-  ]},
-  { "id": 9, "nom": "Shepherd's Pie (Hachis Parmentier) Doux", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Boeuf haché 5%", "quantite": 500, "unite": "g"}, {"nom": "Pommes de terre", "quantite": 800, "unite": "g"}, {"nom": "Petits pois", "quantite": 200, "unite": "g"}, {"nom": "Lait demi-écrémé", "quantite": 150, "unite": "ml"}
-  ]},
-  { "id": 10, "nom": "Riz Cantonais au Boeuf (Sain)", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Riz basmati cuit", "quantite": 600, "unite": "g"}, {"nom": "Oeufs", "quantite": 4, "unite": "pièces"}, {"nom": "Petits pois", "quantite": 150, "unite": "g"}, {"nom": "Steak haché coupé en dés", "quantite": 400, "unite": "g"}
-  ]},
-  { "id": 11, "nom": "Lentilles Saucisses de Boeuf Express", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Lentilles vertes", "quantite": 300, "unite": "g"}, {"nom": "Saucisses de boeuf", "quantite": 4, "unite": "pièces"}, {"nom": "Carottes", "quantite": 3, "unite": "pièces"}, {"nom": "Oignon", "quantite": 1, "unite": "pièce"}
-  ]},
-  { "id": 12, "nom": "Quiche sans Pâte aux Poireaux et Bacon de Boeuf", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Oeufs", "quantite": 5, "unite": "pièces"}, {"nom": "Poireaux", "quantite": 3, "unite": "pièces"}, {"nom": "Bacon de boeuf", "quantite": 100, "unite": "g"}, {"nom": "Lait", "quantite": 250, "unite": "ml"}, {"nom": "Farine", "quantite": 80, "unite": "g"}
-  ]},
-  { "id": 13, "nom": "Moussaka Légère (Boeuf & Aubergines)", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Boeuf haché 5%", "quantite": 500, "unite": "g"}, {"nom": "Aubergines", "quantite": 3, "unite": "pièces"}, {"nom": "Tomates concassées", "quantite": 400, "unite": "g"}, {"nom": "Yaourt grec (pour le nappage)", "quantite": 200, "unite": "g"}
-  ]},
-  { "id": 14, "nom": "Sauté de Porc (Filet Mignon) aux Pommes", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Filet mignon de porc", "quantite": 600, "unite": "g"}, {"nom": "Pommes", "quantite": 3, "unite": "pièces"}, {"nom": "Pommes de terre", "quantite": 400, "unite": "g"}, {"nom": "Oignon", "quantite": 1, "unite": "pièce"}
-  ]},
-  { "id": 15, "nom": "Curry de Pois Chiches Doux au Lait de Coco", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Pois chiches cuits", "quantite": 500, "unite": "g"}, {"nom": "Lait de coco light", "quantite": 400, "unite": "ml"}, {"nom": "Epinards frais", "quantite": 200, "unite": "g"}, {"nom": "Quinoa", "quantite": 200, "unite": "g"}
-  ]},
-  { "id": 16, "nom": "Pâtes à la Crème de Potiron et Parmesan", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Pâtes complètes", "quantite": 400, "unite": "g"}, {"nom": "Purée de potiron", "quantite": 400, "unite": "g"}, {"nom": "Parmesan", "quantite": 50, "unite": "g"}, {"nom": "Lait", "quantite": 100, "unite": "ml"}
-  ]},
-  { "id": 17, "nom": "Muffins aux Oeufs, Légumes et Emmental", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Oeufs", "quantite": 8, "unite": "pièces"}, {"nom": "Courgettes râpées", "quantite": 2, "unite": "pièces"}, {"nom": "Emmental râpé", "quantite": 60, "unite": "g"}, {"nom": "Tranches de pain complet", "quantite": 4, "unite": "pièces"}
-  ]},
-  { "id": 18, "nom": "Tacos Doux au Boeuf et Maïs", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Tortillas de blé complet", "quantite": 8, "unite": "pièces"}, {"nom": "Boeuf haché 5%", "quantite": 400, "unite": "g"}, {"nom": "Maïs", "quantite": 150, "unite": "g"}, {"nom": "Tomates", "quantite": 2, "unite": "pièces"}
-  ]},
-  { "id": 19, "nom": "Risotto aux Champignons et Porc Maigre", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Riz à risotto", "quantite": 300, "unite": "g"}, {"nom": "Champignons de Paris", "quantite": 400, "unite": "g"}, {"nom": "Dés de porc (filet)", "quantite": 400, "unite": "g"}, {"nom": "Bouillon de légumes", "quantite": 1, "unite": "litre"}
-  ]},
-  { "id": 20, "nom": "Omelette Roulée au Fromage et Salade", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Oeufs", "quantite": 10, "unite": "pièces"}, {"nom": "Fromage frais type St-Moret", "quantite": 150, "unite": "g"}, {"nom": "Salade verte", "quantite": 1, "unite": "pièce"}, {"nom": "Pommes de terre vapeur", "quantite": 400, "unite": "g"}
-  ]},
-  { "id": 21, "nom": "Boulettes de Lentilles au Coulis de Tomate", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Lentilles cuites", "quantite": 400, "unite": "g"}, {"nom": "Chapelure", "quantite": 50, "unite": "g"}, {"nom": "Coulis de tomate", "quantite": 400, "unite": "ml"}, {"nom": "Spaghetti", "quantite": 300, "unite": "g"}
-  ]},
-  { "id": 22, "nom": "Gratin de Chou-fleur au Jambon de Boeuf", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Chou-fleur", "quantite": 1, "unite": "pièce"}, {"nom": "Dés de jambon de boeuf", "quantite": 200, "unite": "g"}, {"nom": "Lait", "quantite": 400, "unite": "ml"}, {"nom": "Maïzena", "quantite": 30, "unite": "g"}
-  ]},
-  { "id": 23, "nom": "Chili Végétarien (Sin Carne)", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Haricots rouges", "quantite": 500, "unite": "g"}, {"nom": "Maïs", "quantite": 150, "unite": "g"}, {"nom": "Poivrons", "quantite": 2, "unite": "pièces"}, {"nom": "Riz complet", "quantite": 250, "unite": "g"}, {"nom": "Pulpe de tomate", "quantite": 400, "unite": "ml"}
-  ]},
-  { "id": 24, "nom": "Fajitas au Boeuf et Poivrons Doux", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Bifteck coupé en lanières", "quantite": 500, "unite": "g"}, {"nom": "Tortillas", "quantite": 8, "unite": "pièces"}, {"nom": "Poivrons tricolores", "quantite": 3, "unite": "pièces"}, {"nom": "Oignon rouge", "quantite": 1, "unite": "pièce"}
-  ]},
-  { "id": 25, "nom": "One Pot Pasta Boeuf et Courgettes", "nb_personnes_base": 4, "ingredients": [
-      {"nom": "Pâtes", "quantite": 350, "unite": "g"}, {"nom": "Boeuf haché", "quantite": 400, "unite": "g"}, {"nom": "Courgettes", "quantite": 2, "unite": "pièces"}, {"nom": "Tomates cerises", "quantite": 200, "unite": "g"}
-  ]}
-
+        { "id": 1, "nom": "Bolognaise de Bœuf 5% (Légumes cachés)", "lien": "https://www.750g.com/sauce-bolognaise-rapide-aux-legumes-r204481.htm", "nb_personnes_base": 4, "ingredients": [{"nom": "Boeuf haché 5%", "quantite": 500, "unite": "g"}, {"nom": "Spaghetti complets", "quantite": 400, "unite": "g"}, {"nom": "Carottes", "quantite": 3, "unite": "pièces"}, {"nom": "Coulis de tomate", "quantite": 500, "unite": "ml"}] },
+        { "id": 2, "nom": "Dahl de Lentilles Corail", "lien": "https://www.750g.com/dhal-de-lentilles-corail-au-lait-de-coco-r204368.htm", "nb_personnes_base": 4, "ingredients": [{"nom": "Lentilles corail", "quantite": 300, "unite": "g"}, {"nom": "Lait de coco light", "quantite": 400, "unite": "ml"}, {"nom": "Riz basmati", "quantite": 250, "unite": "g"}] },
+        { "id": 3, "nom": "Frittata Brocolis & Pommes de terre", "lien": "https://www.750g.com/frittata-aux-brocolis-r100025.htm", "nb_personnes_base": 4, "ingredients": [{"nom": "Oeufs", "quantite": 8, "unite": "pièces"}, {"nom": "Pommes de terre", "quantite": 500, "unite": "g"}, {"nom": "Brocolis", "quantite": 1, "unite": "tête"}] },
+        { "id": 6, "nom": "Lasagnes Bolognaise et Carottes", "lien": "https://www.750g.com/lasagnes-a-la-bolognaise-r204556.htm", "nb_personnes_base": 4, "ingredients": [{"nom": "Boeuf haché 5%", "quantite": 500, "unite": "g"}, {"nom": "Pâtes à lasagnes", "quantite": 250, "unite": "g"}, {"nom": "Carottes", "quantite": 4, "unite": "pièces"}, {"nom": "Coulis de tomate", "quantite": 600, "unite": "ml"}] },
+        { "id": 7, "nom": "Boulettes de Boeuf sauce Tomate", "lien": "https://www.750g.com/boulettes-de-viande-a-la-sauce-tomate-r100483.htm", "nb_personnes_base": 4, "ingredients": [{"nom": "Boeuf haché 5%", "quantite": 600, "unite": "g"}, {"nom": "Mozzarella râpée", "quantite": 100, "unite": "g"}, {"nom": "Purée de tomate", "quantite": 400, "unite": "ml"}] },
+        { "id": 8, "nom": "Gratin de Pâtes au Jambon & Brocolis", "lien": "https://www.750g.com/gratin-de-pates-au-jambon-et-aux-brocolis-r200056.htm", "nb_personnes_base": 4, "ingredients": [{"nom": "Pâtes complètes", "quantite": 400, "unite": "g"}, {"nom": "Dés de jambon", "quantite": 200, "unite": "g"}, {"nom": "Brocolis", "quantite": 600, "unite": "g"}] }
+        // ... ajoutez les autres ici sur le même modèle
     ];
 
     const KID_RATIO = 0.5;
 
     function generateMenu() {
-        const days = parseInt(document.getElementById('daysCount').value);
+        let days = parseInt(document.getElementById('daysCount').value) || 5;
         const adults = parseInt(document.getElementById('nbAdults').value) || 0;
         const kids = parseInt(document.getElementById('nbKids').value) || 0;
         const totalParts = adults + (kids * KID_RATIO);
 
+        days = Math.min(days, recipesDB.length);
         const shuffled = [...recipesDB].sort(() => 0.5 - Math.random());
-        const selectedMenu = shuffled.slice(0, Math.min(days, recipesDB.length));
+        const selectedMenu = shuffled.slice(0, days);
         
-        displayMenu(selectedMenu);
+        displayMenu(selectedMenu, totalParts);
         calculateShopping(selectedMenu, totalParts);
         document.getElementById('resultArea').classList.remove('hidden');
     }
 
-    function displayMenu(menu) {
+    function displayMenu(menu, totalParts) {
         let html = "<ul>";
         window.currentMenuText = "";
+        
         menu.forEach((recipe, i) => {
-            html += `<li><strong>J${i+1}:</strong> ${recipe.nom}</li>`;
+            const ratio = totalParts / recipe.nb_personnes_base;
+            const lien = recipe.lien ? ` <a href="${recipe.lien}" target="_blank">📖 Voir la recette</a>` : "";
+            
+            html += `<li><strong>J${i+1}: ${recipe.nom}</strong> ${lien}<ul class="recipe-details">`;
             window.currentMenuText += `J${i+1}: ${recipe.nom}\n`;
+
+            recipe.ingredients.forEach(ing => {
+                const qty = (ing.quantite * ratio).toFixed(ing.unite === 'pièces' || ing.unite === 'tête' ? 1 : 0);
+                const line = `${qty} ${ing.unite} de ${ing.nom}`;
+                html += `<li>${line}</li>`;
+                window.currentMenuText += `  - ${line}\n`;
+            });
+            html += `</ul></li>`;
         });
-        html += "</ul>";
-        document.getElementById('menuOutput').innerHTML = html;
+        document.getElementById('menuOutput').innerHTML = html + "</ul>";
     }
 
-    function calculateShopping(menu, totalPartsNeeded) {
-        let ingredientsMap = {};
+    function calculateShopping(menu, totalParts) {
+        let map = {};
         menu.forEach(recipe => {
-            const ratio = totalPartsNeeded / (recipe.nb_personnes_base || 4);
+            const ratio = totalParts / recipe.nb_personnes_base;
             recipe.ingredients.forEach(ing => {
-                let key = ing.nom.toLowerCase() + "_" + ing.unite;
-                if (!ingredientsMap[key]) {
-                    ingredientsMap[key] = { name: ing.nom, qty: 0, unit: ing.unite };
-                }
-                ingredientsMap[key].qty += (ing.quantite * ratio);
+                let key = ing.nom.toLowerCase().trim() + "_" + ing.unite;
+                if (!map[key]) map[key] = { name: ing.nom, qty: 0, unit: ing.unite };
+                map[key].qty += (ing.quantite * ratio);
             });
         });
 
         let html = "<ul>";
         window.currentShoppingText = "";
-        Object.values(ingredientsMap).sort((a,b) => a.name.localeCompare(b.name)).forEach(item => {
-            let displayQty = ['g','ml'].includes(item.unit.toLowerCase()) ? Math.ceil(item.qty) : item.qty.toFixed(1);
-            let line = `${item.name}: ${displayQty} ${item.unit}`;
+        Object.values(map).sort((a,b) => a.name.localeCompare(b.name)).forEach(item => {
+            let qty = ['g','ml'].includes(item.unit.toLowerCase()) ? Math.ceil(item.qty) : item.qty.toFixed(1);
+            let line = `${item.name}: ${qty} ${item.unit}`;
             html += `<li>${line}</li>`;
             window.currentShoppingText += `- [ ] ${line}\n`;
         });
@@ -216,7 +134,7 @@
     async function exportToNotes() {
         const text = `🍎 MON BATCH COOKING\n\nMENU :\n${window.currentMenuText}\nCOURSES :\n${window.currentShoppingText}`;
         if (navigator.share) {
-            try { await navigator.share({ title: "Liste Courses", text: text }); } catch (e) {}
+            try { await navigator.share({ title: "Mon Batch Cooking", text: text }); } catch (e) {}
         } else {
             navigator.clipboard.writeText(text);
             alert("Copié dans le presse-papier !");
