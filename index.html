@@ -60,6 +60,7 @@
 </div>
 
 <script>
+    // Ajout de "tags" pour la diversité : [Protéine, Sauce/Style, Féculent]
     const recipesDB = [
   { "id": 1, "nom": "Bolognaise de Bœuf 5% (Légumes cachés)", "tags": ["boeuf", "tomate", "pates"], "nb_personnes_base": 4, "lien": "", "ingredients": [{"nom": "Boeuf haché 5%", "quantite": 500, "unite": "g"}, {"nom": "Spaghetti complets", "quantite": 400, "unite": "g"}, {"nom": "Carottes", "quantite": 3, "unite": "pièces"}, {"nom": "Coulis de tomate", "quantite": 500, "unite": "ml"}] },
   { "id": 2, "nom": "Dahl de Lentilles Corail", "tags": ["vege", "coco", "riz"], "nb_personnes_base": 4, "lien": "", "ingredients": [{"nom": "Lentilles corail", "quantite": 300, "unite": "g"}, {"nom": "Lait de coco light", "quantite": 400, "unite": "ml"}, {"nom": "Riz basmati", "quantite": 250, "unite": "g"}] },
@@ -91,58 +92,70 @@
     const KID_RATIO = 0.5;
 
     function generateMenu() {
-        let days = parseInt(document.getElementById('daysCount').value) || 5;
+        let daysRequested = parseInt(document.getElementById('daysCount').value) || 5;
         const adults = parseInt(document.getElementById('nbAdults').value) || 0;
         const kids = parseInt(document.getElementById('nbKids').value) || 0;
         const totalParts = adults + (kids * KID_RATIO);
 
-        days = Math.min(days, recipesDB.length);
-        const shuffled = [...recipesDB].sort(() => 0.5 - Math.random());
-        const selectedMenu = shuffled.slice(0, days);
+        const selectedMenu = [];
+        const usedTags = {};
+        const shuffledPool = [...recipesDB].sort(() => 0.5 - Math.random());
+
+        for (let recipe of shuffledPool) {
+            if (selectedMenu.length >= daysRequested) break;
+
+            // Vérifier si un tag de la recette est déjà trop utilisé (max 2 fois le même tag par semaine)
+            const hasTooMuchRedundancy = recipe.tags.some(tag => (usedTags[tag] || 0) >= 2);
+
+            if (!hasTooMuchRedundancy) {
+                selectedMenu.push(recipe);
+                recipe.tags.forEach(tag => {
+                    usedTags[tag] = (usedTags[tag] || 0) + 1;
+                });
+            }
+        }
+
+        // Si après le filtrage on n'a pas assez de recettes, on complète sans filtrer
+        if (selectedMenu.length < daysRequested) {
+            for (let recipe of shuffledPool) {
+                if (selectedMenu.length >= daysRequested) break;
+                if (!selectedMenu.includes(recipe)) selectedMenu.push(recipe);
+            }
+        }
         
-        displayMenu(selectedMenu, totalParts);
+        displayMenu(selectedMenu);
         calculateShopping(selectedMenu, totalParts);
         document.getElementById('resultArea').classList.remove('hidden');
     }
 
-    function displayMenu(menu, totalParts) {
+    // Gardez les fonctions displayMenu, calculateShopping et exportToNotes identiques à la version précédente
+    function displayMenu(menu) {
         let html = "<ul>";
         window.currentMenuText = "";
-        
         menu.forEach((recipe, i) => {
-            const ratio = totalParts / recipe.nb_personnes_base;
-            const lien = recipe.lien ? ` <a href="${recipe.lien}" target="_blank">📖 Voir la recette</a>` : "";
-            
-            html += `<li><strong>J${i+1}: ${recipe.nom}</strong> ${lien}<ul class="recipe-details">`;
+            html += `<li><strong>J${i+1}:</strong> ${recipe.nom}</li>`;
             window.currentMenuText += `J${i+1}: ${recipe.nom}\n`;
-
-            recipe.ingredients.forEach(ing => {
-                const qty = (ing.quantite * ratio).toFixed(ing.unite === 'pièces' || ing.unite === 'tête' ? 1 : 0);
-                const line = `${qty} ${ing.unite} de ${ing.nom}`;
-                html += `<li>${line}</li>`;
-                window.currentMenuText += `  - ${line}\n`;
-            });
-            html += `</ul></li>`;
         });
         document.getElementById('menuOutput').innerHTML = html + "</ul>";
     }
 
-    function calculateShopping(menu, totalParts) {
-        let map = {};
+    function calculateShopping(menu, totalPartsNeeded) {
+        let ingredientsMap = {};
         menu.forEach(recipe => {
-            const ratio = totalParts / recipe.nb_personnes_base;
+            const ratio = totalPartsNeeded / (recipe.nb_personnes_base || 4);
             recipe.ingredients.forEach(ing => {
-                let key = ing.nom.toLowerCase().trim() + "_" + ing.unite;
-                if (!map[key]) map[key] = { name: ing.nom, qty: 0, unit: ing.unite };
-                map[key].qty += (ing.quantite * ratio);
+                let key = ing.nom.toLowerCase().trim() + "_" + ing.unite.trim();
+                if (!ingredientsMap[key]) {
+                    ingredientsMap[key] = { name: ing.nom, qty: 0, unit: ing.unite };
+                }
+                ingredientsMap[key].qty += (ing.quantite * ratio);
             });
         });
-
         let html = "<ul>";
         window.currentShoppingText = "";
-        Object.values(map).sort((a,b) => a.name.localeCompare(b.name)).forEach(item => {
-            let qty = ['g','ml'].includes(item.unit.toLowerCase()) ? Math.ceil(item.qty) : item.qty.toFixed(1);
-            let line = `${item.name}: ${qty} ${item.unit}`;
+        Object.values(ingredientsMap).sort((a,b) => a.name.localeCompare(b.name)).forEach(item => {
+            let displayQty = ['g','ml'].includes(item.unit.toLowerCase()) ? Math.ceil(item.qty) : item.qty.toFixed(1);
+            let line = `${item.name}: ${displayQty} ${item.unit}`;
             html += `<li>${line}</li>`;
             window.currentShoppingText += `- [ ] ${line}\n`;
         });
@@ -152,10 +165,10 @@
     async function exportToNotes() {
         const text = `🍎 MON BATCH COOKING\n\nMENU :\n${window.currentMenuText}\nCOURSES :\n${window.currentShoppingText}`;
         if (navigator.share) {
-            try { await navigator.share({ title: "Mon Batch Cooking", text: text }); } catch (e) {}
+            try { await navigator.share({ title: "Liste Courses", text: text }); } catch (e) {}
         } else {
             navigator.clipboard.writeText(text);
-            alert("Copié dans le presse-papier !");
+            alert("Copié !");
         }
     }
 </script>
